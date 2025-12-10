@@ -4,7 +4,7 @@
 # ═══════════════════════════════════════════════════════════
 
 input_number:
-  pid_kp:
+  pid_heat_compensation_kp:
     name: P (Proportionell)
     min: -5
     max: 5
@@ -13,7 +13,7 @@ input_number:
     icon: mdi:lightning-bolt-circle
     mode: box
 
-  pid_ki:
+  pid_heat_compensation_ki:
     name: I (Integrerande)
     min: -5
     max: 5
@@ -22,7 +22,7 @@ input_number:
     icon: mdi:lightning-bolt-circle
     mode: box
 
-  pid_kd:
+  pid_heat_compensation_kd:
     name: D (Derivativ)
     min: 0
     max: 5
@@ -31,7 +31,7 @@ input_number:
     icon: mdi:lightning-bolt-circle
     mode: box
 
-  pid_weather_factor:
+  pid_heat_compensation_weather_factor:
     name: Väderfaktor
     min: -10
     max: 10
