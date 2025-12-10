@@ -1,62 +1,112 @@
 import logging
+from homeassistant.helpers import entity_registry as er
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import UnitOfTemperature, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.event import async_track_state_change
+from homeassistant.core import HomeAssistant, callback
 
-from .const import DOMAIN, HA_DATA_KEY, CONF_INDOOR_SENSOR, ATTR_COMPENSATED_TEMP
+from .const import DOMAIN, ATTR_COMPENSATED_TEMP
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities):
-    """Sets the sensor platform."""
+    """Set up the PID Compensated Sensor from a config entry."""
+    
+    # The Climate Entity ID is often derived from the Config Entry's unique ID
+    # or the integration's domain setup, depending on the HA version.
+    # We construct a likely ID based on the domain setup, and use the friendly name.
+    
+    # We rely on the naming convention (domain + entry_id or the name given in config flow)
+    # The easiest way is to assume the climate entity is named after the integration domain
+    # or the name given in the config flow.
+    # 1. Definiera det unika ID:t som Climate Entity använder
+    CLIMATE_UNIQUE_ID = f"{config_entry.entry_id}_pid_climate"
+    
+    # 2. Använd registret för att hitta det faktiska Entitets-ID:t (t.ex. climate.pid_heat_compensation)
+    entity_registry = er.async_get(hass)
+    climate_entity_id = entity_registry.async_get_entity_id("climate", DOMAIN, CLIMATE_UNIQUE_ID)
 
-    # Retrieves the climate entity that will store the data
-    climate_entity_id = f"climate.{config_entry.data['name'].lower().replace(' ', '_')}" 
+    if climate_entity_id is None:
+        _LOGGER.error(f"Could not find climate entity with unique ID: {CLIMATE_UNIQUE_ID}. Sensor creation aborted.")
+        return False # Avbryt om Climate Entity inte hittas
 
-    async_add_entities([
-        PIDCompensationSensor(hass, config_entry.data, climate_entity_id)
-    ], True)
+    # Attempt to use the friendly name from the Config Entry
+    climate_name = config_entry.title if config_entry.title else "PID Heat Compensation"
+    
+    async_add_entities([PIDCompensatedTempSensor(hass, climate_entity_id, climate_name)], True)
+    return True
 
-class PIDCompensationSensor(SensorEntity):
-    """Sensor that exposes the fake outdoor temperature."""
+class PIDCompensatedTempSensor(SensorEntity):
+    """Represents the Compensated Outdoor Temperature as a sensor."""
 
+    # Define properties for the sensor
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_icon = "mdi:thermometer-lines"
-    _attr_device_class = "temperature"
-    _attr_state_class = "measurement"
+    
+    # Set the state class for long-term statistics (optional but recommended for temps)
+    _attr_state_class = "measurement" 
 
-    def __init__(self, hass, config, climate_entity_id):
+    def __init__(self, hass, climate_entity_id, climate_name):
+        """Initialize the sensor."""
         self.hass = hass
-        self._attr_name = f"{config.get('name')} Kompenserad UteTemp"
-        self._attr_unique_id = f"pid_comp_{config['name'].lower()}_temp"
         self._climate_entity_id = climate_entity_id
-        self._T_komp = None
-
-    async def async_added_to_hass(self):
-        """Listen for changes in the Climate Entity's attributes."""
-
-        self.async_on_remove(
-            async_track_state_change(
-                self.hass, self._climate_entity_id, self._async_update_from_climate
-            )
-        )
-
-    async def _async_update_from_climate(self, entity_id, old_state, new_state):
-        """Updates the sensor value from the Climate Entity's attribute."""
-
-        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return
-
-        # Read the attribute ATTR_COMPENSATED_TEMP from the Climate Entity
-        compensated_temp = new_state.attributes.get(ATTR_COMPENSATED_TEMP)
-
-        if compensated_temp not in (None, 'N/A'):
-            self._T_komp = compensated_temp
-            self.async_write_ha_state()
+        
+        # Set a unique ID to avoid conflicts in the entity registry
+        self._attr_unique_id = f"pid_comp_temp_{climate_entity_id}"
+        
+        # Set a descriptive friendly name
+        self._attr_name = f"{climate_name} Compensated Outdoor Temp"
+        self._attr_native_value = None
 
     @property
     def native_value(self):
-        """Returns the calculated fake temperature."""
-        return self._T_komp
+        """Return the state of the sensor."""
+        return self._attr_native_value
+
+    async def async_added_to_hass(self):
+        """Register callbacks when entity is added."""
+        
+        # Listen for state changes (including attribute changes) on the Climate Entity
+        @callback
+        def async_climate_state_listener(event):
+            """Handles state changes from the Climate Entity."""
+            if isinstance(event, dict):
+
+                new_state = event.get("new_state")
+            else:
+                new_state = event.data.get("new_state")
+
+            if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                return
+
+            # Get the value from the attribute exposed in climate.py
+            compensated_temp = new_state.attributes.get(ATTR_COMPENSATED_TEMP)
+
+            if compensated_temp is not None and compensated_temp != 'N/A':
+                try:
+                    self._attr_native_value = float(compensated_temp)
+                    self.async_write_ha_state()
+                except (ValueError, TypeError):
+                    _LOGGER.warning(f"Failed to convert compensated temp attribute '{compensated_temp}' to float.")
+
+        # Use the modern and correct method to track state changes
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self._climate_entity_id], async_climate_state_listener
+            )
+        )
+
+        initial_event_data = {
+            'data': {
+                'entity_id': self._climate_entity_id,
+                'new_state': self.hass.states.get(self._climate_entity_id)
+            }
+        }
+
+        # Perform an initial update
+        self.hass.async_add_executor_job(
+            async_climate_state_listener,
+            initial_event_data
+        )

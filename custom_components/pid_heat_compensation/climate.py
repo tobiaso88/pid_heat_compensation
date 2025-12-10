@@ -20,15 +20,15 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Define TEMP_CELSIUS here to replace the removed constant
+# Define TEMP_CELSIUS here for compatibility
 TEMP_CELSIUS = UnitOfTemperature.CELSIUS
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities):
     """Set up the climate platform from a Config Entry (UI)."""
-    
+
     config = config_entry.data
     pid_climate = PIDClimateController(hass, config_entry)
-    
+
     async_add_entities([pid_climate])
 
 class PIDClimateController(ClimateEntity, RestoreEntity):
@@ -45,6 +45,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
     def __init__(self, hass, config_entry):
         """Initialize the PID Climate entity."""
         self.hass = hass
+        self._config_entry_id = config_entry.entry_id
 
         # Read config (prioritizes options over initial config data)
         config = config_entry.options if config_entry.options else config_entry.data
@@ -65,7 +66,8 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         self._is_on = True
         self._compensated_temp_value = None
         self._real_outdoor_temp_value = None
-        self._weather_factor = 1.0
+        # weather_factor is initialized here, dynamically updated in _async_update_loop
+        self._weather_factor = 1.0 
 
         # PID-instance (Anti-Windup limits set dynamically)
         self.pid = PID(
@@ -73,6 +75,10 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             output_limits=(-self.MAX_TEMP_DIFFERENCE, self.MAX_TEMP_DIFFERENCE)
         )
         self._LOGGER = logging.getLogger(f"{__name__}.{self._attr_name}")
+
+    @property
+    def unique_id(self):
+        return f"{self._config_entry_id}_pid_climate"
 
     async def async_added_to_hass(self) -> None:
         """Called when the entity is added to HA. Used to restore state and set up listeners."""
@@ -97,7 +103,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
         # If no previous state was found, use the default target temperature
         if self._attr_target_temperature is None:
-             self._attr_target_temperature = self.DEFAULT_TARGET_TEMP
+            self._attr_target_temperature = self.DEFAULT_TARGET_TEMP
         
         # Set PID setpoint
         self.pid.setpoint = self._attr_target_temperature
@@ -121,8 +127,9 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # Initialize PID K-values from Input Numbers
         self._update_pid_k_values()
 
-        # Manually call update loop once to initialize T_comp immediately on startup.
-        await self._async_update_loop({'data': {'new_state': self.hass.states.get(self._indoor_sensor)}})
+        # Manually call update loop once to initialize T_comp immediately on startup.   
+        # We pass None as event since it's a manual call.
+        await self._async_update_loop(None)
 
     async def _async_update_loop(self, event):
         """Main loop: Runs PID calculation, applies constraints, and updates attributes."""
@@ -130,15 +137,34 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # 1. Check availability and fetch sensor values
         T_indoor = self._get_float_state(self._indoor_sensor)
         T_real_outdoor = self._get_float_state(self._outdoor_sensor)
-        weather_factor = self._get_float_state('input_number.pid_weather_factor') 
+        weather_factor = self._get_float_state('input_number.pid_weather_factor')
 
         self._weather_factor = weather_factor if weather_factor is not None else 1.0
 
         # Update real outdoor temperature attribute (for monitoring)
         self._real_outdoor_temp_value = T_real_outdoor
 
+        # --- RESTORING LOGIC FOR NONE VALUES (Fixes startup warnings/aborts) ---
+
+        if T_indoor is None:
+            last_state = self.hass.states.get(self._indoor_sensor)
+            if last_state and last_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
+                try:
+                    T_indoor = float(last_state.state)
+                except ValueError:
+                    pass 
+
+        if T_real_outdoor is None:
+            last_state = self.hass.states.get(self._outdoor_sensor)
+            if last_state and last_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
+                try:
+                    T_real_outdoor = float(last_state.state)
+                except ValueError:
+                    pass
+
+        # If T_indoor/T_real_outdoor are STILL None after attempted restoration, abort.
         if T_indoor is None or T_real_outdoor is None:
-            self._LOGGER.warning("Could not fetch valid temperature values for PID calculation.")
+            self._LOGGER.warning("Could not fetch valid temperature values for PID calculation (Sensors still loading).")
             return
 
         self._attr_current_temperature = T_indoor
@@ -187,20 +213,22 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             self._attr_target_temperature = target_temp
             self.pid.setpoint = target_temp
 
-            # Use async_add_job to safely schedule the update on the main loop
-            self.hass.async_add_job(
-                self._async_update_loop,
-                {'data': {'new_state': self.hass.states.get(self._indoor_sensor)}}
+            # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
+            self.hass.async_create_task(
+                self._async_update_loop(
+                    {'data': {'new_state': self.hass.states.get(self._indoor_sensor)}}
+                )
             )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Sets the operating mode (HEAT/OFF)."""
         if hvac_mode == HVACMode.HEAT:
             self._is_on = True
-            # Schedule update to recalculate T_comp immediately
-            self.hass.async_add_job(
-                self._async_update_loop,
-                {'data': {'new_state': self.hass.states.get(self._indoor_sensor)}}
+            # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
+            self.hass.async_create_task(
+                self._async_update_loop(
+                    {'data': {'new_state': self.hass.states.get(self._indoor_sensor)}}
+                )
             )
         else:
             self._is_on = False
@@ -255,11 +283,11 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             
         # If called by an Input Number change, trigger a Climate entity update via main loop
         if event:
-            self.hass.async_add_job(
-                self._async_update_loop,
-                event # Pass the event to trigger the main loop calculation
+            # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
+            self.hass.async_create_task(
+                self._async_update_loop(event) # Pass the event to trigger the main loop calculation
             )
-    
+        
     def _get_k_value(self, entity_id):
         """Fetches the current float value for an Input Number entity."""
         try:

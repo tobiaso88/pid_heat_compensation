@@ -9,13 +9,13 @@ _LOGGER = logging.getLogger(__name__)
 # Change the typing to be general, or remove it.
 # Home Assistant recommends not using ConfigType here in Config Flow components.
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    return True 
+    return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set PID Heat Compensation from a Config Entry."""
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = entry.data
+    hass.data[DOMAIN][entry.entry_id] = entry
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
