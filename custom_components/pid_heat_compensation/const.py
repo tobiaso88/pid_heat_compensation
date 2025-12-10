@@ -6,7 +6,7 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "pid_heat_compensation"
 PLATFORMS = ["climate", "sensor"]
 HA_DATA_KEY = "pid_compensation_data"
-ATTR_COMPENSATED_TEMP = "compensated_outdoor_temperature" # <-- NY KONSTANT
+ATTR_COMPENSATED_TEMP = "compensated_outdoor_temperature"
 
 # Configuration keys for the PID controller
 CONF_INDOOR_SENSOR = "indoor_temp_entity"
