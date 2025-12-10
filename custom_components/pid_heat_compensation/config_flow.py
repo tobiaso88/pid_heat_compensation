@@ -5,8 +5,13 @@ from homeassistant.const import CONF_NAME
 from homeassistant.helpers.selector import selector
 
 from .const import (
-    DOMAIN, CONF_INDOOR_SENSOR, CONF_OUTDOOR_SENSOR,
-    CONF_KP, CONF_KI, CONF_KD, DEFAULT_NAME
+    CONF_INDOOR_SENSOR,
+    CONF_KD_ENTITY,
+    CONF_KI_ENTITY,
+    CONF_KP_ENTITY,
+    CONF_OUTDOOR_SENSOR,
+    DEFAULT_NAME,
+    DOMAIN
 )
 
 _LOGGER = logging.getLogger(__name__)
