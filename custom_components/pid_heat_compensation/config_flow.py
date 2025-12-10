@@ -24,13 +24,13 @@ STEP_USER_DATA_SCHEMA = vol.Schema({
     vol.Required(CONF_OUTDOOR_SENSOR): selector(
         {"entity": {"domain": "sensor", "device_class": "temperature"}}
     ),
-    vol.Required("kp_entity", default="input_number.pid_kp"): selector({
+    vol.Required(CONF_KP_ENTITY, default="input_number.pid_heat_compensation_kp"): selector({
         "entity": {"domain": "input_number"}
     }),
-    vol.Required("ki_entity", default="input_number.pid_ki"): selector({
+    vol.Required(CONF_KI_ENTITY, default="input_number.pid_heat_compensation_ki"): selector({
         "entity": {"domain": "input_number"}
     }),
-    vol.Required("kd_entity", default="input_number.pid_kd"): selector({
+    vol.Required(CONF_KD_ENTITY, default="input_number.pid_heat_compensation_kd"): selector({
         "entity": {"domain": "input_number"}
     }),
 })
