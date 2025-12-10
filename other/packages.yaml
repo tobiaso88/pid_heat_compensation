@@ -1,0 +1,41 @@
+# packages/pid_heat_compensation.yaml
+# ═══════════════════════════════════════════════════════════
+# INPUT ENTITIES
+# ═══════════════════════════════════════════════════════════
+
+input_number:
+  pid_kp:
+    name: P (Proportionell)
+    min: -5
+    max: 5
+    step: 0.01
+    unit_of_measurement: "level"
+    icon: mdi:lightning-bolt-circle
+    mode: box
+
+  pid_ki:
+    name: I (Integrerande)
+    min: -5
+    max: 5
+    step: 0.001
+    unit_of_measurement: "level"
+    icon: mdi:lightning-bolt-circle
+    mode: box
+
+  pid_kd:
+    name: D (Derivativ)
+    min: 0
+    max: 5
+    step: 0.01
+    unit_of_measurement: "level"
+    icon: mdi:lightning-bolt-circle
+    mode: box
+
+  pid_weather_factor:
+    name: Väderfaktor
+    min: -10
+    max: 10
+    step: 0.1
+    unit_of_measurement: "level"
+    icon: mdi:lightning-bolt-circle
+    mode: slider
