@@ -32,10 +32,9 @@ $7.0 - (1.0 \times 2.0) = 5.0°C$
 The heat pump receives 5°C and increases its output accordingly.
 
 ## Installation
-1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory.
-2. Copy `other/packages.yaml` to your `config/packages/` naming it `pid_heat_compensation.yaml` directory (ensure packages are enabled in your `configuration.yaml`).
-3. Restart Home Assistant.
-4.  Add the sensor via your `configuration.yaml` or through the Integrations UI.
+1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory. Or add it via HACS
+2. Restart Home Assistant.
+3. Add the sensor via your `configuration.yaml` or through the Integrations UI.
 
 ![Config Flow Setup](images/setup.png)
 
