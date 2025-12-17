@@ -1,0 +1,32 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Konfigurerar PID Heating Compensation",
+                "description": "Ange sensorer och hjälpfunktioner för PID-regulatorn. Hjälpfunktionerna (ingångsnummer) låter dig finjustera värmepumpen i realtid.",
+                "data": {
+                    "name": "Integrationens namn",
+                    "indoor_temp_entity": "Sensor för inomhustemperatur",
+                    "outdoor_temp_entity": "Sensor för utomhustemperatur",
+                    "kp_entity": "P-Faktor entitet (input_number)",
+                    "ki_entity": "I-Faktor entitet (input_number)",
+                    "kd_entity": "D-Faktor entitet (input_number)",
+                    "weather_factor_entity": "Väder faktor entitet (input_number)"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Tune PID Settings",
+                "data": {
+                    "kp_entity": "P-Faktor entitet",
+                    "ki_entity": "I-Faktor entitet",
+                    "kd_entity": "D-Faktor entitet",
+                    "weather_factor_entity": "Weather Factor Entity"
+                }
+            }
+        }
+    }
+}
