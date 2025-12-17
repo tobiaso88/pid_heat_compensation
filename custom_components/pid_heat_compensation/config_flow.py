@@ -10,6 +10,7 @@ from .const import (
     CONF_KI_ENTITY,
     CONF_KP_ENTITY,
     CONF_OUTDOOR_SENSOR,
+    CONF_WEATHER_FACTOR_ENTITY,
     DEFAULT_NAME,
     DOMAIN
 )
@@ -31,6 +32,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema({
         "entity": {"domain": "input_number"}
     }),
     vol.Required(CONF_KD_ENTITY, default="input_number.pid_heat_compensation_kd"): selector({
+        "entity": {"domain": "input_number"}
+    }),
+    vol.Required(CONF_WEATHER_FACTOR_ENTITY, default="input_number.pid_heat_compensation_weather_factor"): selector({
         "entity": {"domain": "input_number"}
     }),
 })

@@ -13,6 +13,7 @@ from .const import (
     CONF_KD_ENTITY,
     CONF_KI_ENTITY,
     CONF_KP_ENTITY,
+    CONF_WEATHER_FACTOR_ENTITY,
     CONF_OUTDOOR_SENSOR,
     DOMAIN,
     MAX_TEMP_DIFFERENCE
@@ -49,12 +50,13 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
         # Read config (prioritizes options over initial config data)
         config = config_entry.options if config_entry.options else config_entry.data
-        
+
         # PID Entity IDs for dynamic tuning
         self._kp_entity_id = config.get(CONF_KP_ENTITY)
         self._ki_entity_id = config.get(CONF_KI_ENTITY)
         self._kd_entity_id = config.get(CONF_KD_ENTITY)
-        
+        self._weather_factor_entity_id = config.get(CONF_WEATHER_FACTOR_ENTITY)
+
         # Configuration
         self._attr_name = config.get("name")
         self._indoor_sensor = config[CONF_INDOOR_SENSOR]
@@ -137,7 +139,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # 1. Check availability and fetch sensor values
         T_indoor = self._get_float_state(self._indoor_sensor)
         T_real_outdoor = self._get_float_state(self._outdoor_sensor)
-        weather_factor = self._get_float_state('input_number.pid_weather_factor')
+        weather_factor = self._get_float_state(self._weather_factor_entity_id)
 
         self._weather_factor = weather_factor if weather_factor is not None else 1.0
 
