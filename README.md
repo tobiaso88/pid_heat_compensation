@@ -37,14 +37,20 @@ In `sensor.py`, you will find three primary parameters that dictate how the syst
 To send the calculated value to your heat pump, create an automation that triggers whenever the sensor state changes:
 
 ```yaml
-alias: "Update Heatpump T-Comp"
-description: "Sends the calculated optimal temperature to the heat pump"
-trigger:
-  - platform: state
-    entity_id: sensor.optimal_heating_temperature
-action:
-  - service: climate.set_temperature # Or the specific service for your heat pump
+alias: "Värme: Uppdatera Ohmigo sensor"
+description: ""
+triggers:
+  - trigger: time_pattern
+    minutes: /15
+conditions: []
+actions:
+  - data:
+      value: >-
+        {{ states('sensor.pid_heat_compensation_compensated_outdoor_temp') |
+        float }}
     target:
-      entity_id: climate.my_heatpump
-    data:
-      temperature: "{{ states('sensor.optimal_heating_temperature') | float }}"
+      entity_id:
+        - number.ohmonwifiplus_402552_temperature_set
+    action: number.set_value
+mode: single
+
