@@ -34,7 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     # Attempt to use the friendly name from the Config Entry
     climate_name = config_entry.title if config_entry.title else "PID Heat Compensation"
     
-    async_add_entities([PIDCompensatedTempSensor(hass, climate_entity_id, climate_name)], True)
+    async_add_entities([PIDCompensatedTempSensor(hass, config_entry, climate_entity_id, climate_name)], True)
     return True
 
 class PIDCompensatedTempSensor(SensorEntity):
@@ -48,10 +48,12 @@ class PIDCompensatedTempSensor(SensorEntity):
     # Set the state class for long-term statistics (optional but recommended for temps)
     _attr_state_class = "measurement" 
 
-    def __init__(self, hass, climate_entity_id, climate_name):
+    def __init__(self, hass, config_entry, climate_entity_id, climate_name):
         """Initialize the sensor."""
         self.hass = hass
+        self._config_entry = config_entry
         self._climate_entity_id = climate_entity_id
+        self._config_entry_id = config_entry.entry_id
         
         # Set a unique ID to avoid conflicts in the entity registry
         self._attr_unique_id = f"pid_comp_temp_{climate_entity_id}"
@@ -64,6 +66,16 @@ class PIDCompensatedTempSensor(SensorEntity):
     def native_value(self):
         """Return the state of the sensor."""
         return self._attr_native_value
+
+    @property
+    def device_info(self):
+        """Kopplar entiteten till en gemensam enhet."""
+        return {
+            "identifiers": {(DOMAIN, self._config_entry_id)},
+            "name": self._config_entry.title,
+            "manufacturer": "tobiaso88",
+            "model": "PID Heat Compensation",
+        }
 
     async def async_added_to_hass(self):
         """Register callbacks when entity is added."""

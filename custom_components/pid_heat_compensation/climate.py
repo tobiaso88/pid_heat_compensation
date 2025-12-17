@@ -46,6 +46,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
     def __init__(self, hass, config_entry):
         """Initialize the PID Climate entity."""
         self.hass = hass
+        self._config_entry = config_entry
         self._config_entry_id = config_entry.entry_id
 
         # Read config (prioritizes options over initial config data)
@@ -83,6 +84,16 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
     @property
     def unique_id(self):
         return f"{self._config_entry_id}_pid_climate"
+
+    @property
+    def device_info(self):
+        """Kopplar entiteten till en gemensam enhet."""
+        return {
+            "identifiers": {(DOMAIN, self._config_entry_id)},
+            "name": self._config_entry.title,
+            "manufacturer": "tobiaso88",
+            "model": "PID Heat Compensation",
+        }
 
     async def async_added_to_hass(self) -> None:
         """Called when the entity is added to HA. Used to restore state and set up listeners."""
