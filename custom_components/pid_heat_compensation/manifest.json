@@ -6,7 +6,7 @@
     "documentation": "https://github.com/tobiaso88/pid_heat_compensation",
     "issue_tracker": "https://github.com/tobiaso88/pid_heat_compensation/issues",
     "config_flow": true,
-    "integration_type": "helper",
+    "integration_type": "service",
     "iot_class": "local_polling",
     "requirements": ["simple-pid==2.0.1"]
 }
