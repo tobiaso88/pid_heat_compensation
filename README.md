@@ -16,6 +16,21 @@ Most heat pumps are governed by an outdoor sensor and a pre-defined heating curv
 * **If Indoor < Setpoint:** $T_{comp}$ is lowered (The heat pump believes it is colder outside than it actually is and increases heat production).
 * **If Indoor > Setpoint:** $T_{comp}$ is raised (The heat pump believes it is warmer outside and decreases production).
 
+## The Weather Factor Formula
+
+The integration calculates the compensated temperature using the following logic:
+
+$$T_{comp} = T_{outdoor} - (\Delta T \times \text{weather\_factor})$$
+
+Where:
+- **$\Delta T$**: The difference between target and actual indoor temperature.
+- **weather_factor**: A multiplier that defines how aggressively the system should react to temperature deviations and external conditions (wind, sun, etc.).
+
+**Example:**
+If it's 7°C outside and the house is 1°C below target, a weather factor of 2.0 will result in:
+$7.0 - (1.0 \times 2.0) = 5.0°C$
+The heat pump receives 5°C and increases its output accordingly.
+
 ## Installation
 1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory.
 2. Copy `packages/pid_heat_compensation.yaml` to your `config/packages/` directory (ensure packages are enabled in your `configuration.yaml`).
