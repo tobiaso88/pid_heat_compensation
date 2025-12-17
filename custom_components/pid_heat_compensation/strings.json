@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure PID Heating Compensation",
+        "description": "Specify the sensors and helpers for the PID controller. The helpers (input_numbers) allow you to tune the heat pump in real-time.",
+        "data": {
+          "name": "Integration Name",
+          "indoor_sensor": "Indoor Temperature Sensor",
+          "outdoor_sensor": "Outdoor Temperature Sensor",
+          "kp_entity": "P-Factor Entity (input_number)",
+          "ki_entity": "I-Factor Entity (input_number)",
+          "kd_entity": "D-Factor Entity (input_number)",
+          "weather_factor_entity": "Weather Factor Entity (input_number)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to sensors",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tune PID Settings",
+        "data": {
+          "kp_entity": "P-Factor Entity",
+          "ki_entity": "I-Factor Entity",
+          "kd_entity": "D-Factor Entity",
+          "weather_factor_entity": "Weather Factor Entity"
+        }
+      }
+    }
+  }
+}
