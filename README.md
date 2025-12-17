@@ -37,6 +37,8 @@ The heat pump receives 5°C and increases its output accordingly.
 3. Restart Home Assistant.
 4.  Add the sensor via your `configuration.yaml` or through the Integrations UI.
 
+![Config Flow Setup](images/setup.png)
+
 ## Configuration (PID Tuning)
 
 In `sensor.py`, you will find three primary parameters that dictate how the system reacts. Adjust these to suit your home's specific thermal mass:
