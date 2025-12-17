@@ -24,7 +24,7 @@
                     "kp_entity": "P-Faktor entitet",
                     "ki_entity": "I-Faktor entitet",
                     "kd_entity": "D-Faktor entitet",
-                    "weather_factor_entity": "Weather Factor Entity"
+                    "weather_factor_entity": "Väder faktor entitet"
                 }
             }
         }
