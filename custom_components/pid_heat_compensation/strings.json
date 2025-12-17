@@ -6,19 +6,14 @@
         "description": "Specify the sensors and helpers for the PID controller. The helpers (input_numbers) allow you to tune the heat pump in real-time.",
         "data": {
           "name": "Integration Name",
-          "indoor_sensor": "Indoor Temperature Sensor",
-          "outdoor_sensor": "Outdoor Temperature Sensor",
+          "indoor_temp_entity": "Indoor Temperature Sensor",
+          "outdoor_temp_entity": "Outdoor Temperature Sensor",
           "kp_entity": "P-Factor Entity (input_number)",
           "ki_entity": "I-Factor Entity (input_number)",
           "kd_entity": "D-Factor Entity (input_number)",
           "weather_factor_entity": "Weather Factor Entity (input_number)"
         }
       }
-    },
-    "error": {
-      "cannot_connect": "Failed to connect to sensors",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
     }
   },
   "options": {
