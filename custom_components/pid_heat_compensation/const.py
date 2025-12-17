@@ -4,7 +4,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Core constants
 DOMAIN = "pid_heat_compensation"
-PLATFORMS = ["climate", "sensor"]
+PLATFORMS = ["climate", "number", "sensor"]
 HA_DATA_KEY = "pid_compensation_data"
 ATTR_COMPENSATED_TEMP = "compensated_outdoor_temperature"
 

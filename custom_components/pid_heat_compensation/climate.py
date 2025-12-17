@@ -51,11 +51,13 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # Read config (prioritizes options over initial config data)
         config = config_entry.options if config_entry.options else config_entry.data
 
+        prefix = "number." + config.get("name").lower().replace(" ", "_")
+
         # PID Entity IDs for dynamic tuning
-        self._kp_entity_id = config.get(CONF_KP_ENTITY)
-        self._ki_entity_id = config.get(CONF_KI_ENTITY)
-        self._kd_entity_id = config.get(CONF_KD_ENTITY)
-        self._weather_factor_entity_id = config.get(CONF_WEATHER_FACTOR_ENTITY)
+        self._kp_entity_id = f"{prefix}_kp"
+        self._ki_entity_id = f"{prefix}_ki"
+        self._kd_entity_id = f"{prefix}_kd"
+        self._weather_factor_entity_id = f"{prefix}_weather_factor"
 
         # Configuration
         self._attr_name = config.get("name")
@@ -114,7 +116,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         self.async_on_remove(
             async_track_state_change_event(
                 self.hass, 
-                [self._kp_entity_id, self._ki_entity_id, self._kd_entity_id], 
+                [self._kp_entity_id, self._ki_entity_id, self._kd_entity_id, self._weather_factor_entity_id], 
                 self._update_pid_k_values
             )
         )
