@@ -17,8 +17,6 @@ Most heat pumps are governed by an outdoor sensor and a pre-defined heating curv
 * **If Indoor > Setpoint:** $T_{comp}$ is raised (The heat pump believes it is warmer outside and decreases production).
 
 ## Installation
-
-## Installation
 1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory.
 2. Copy `packages/pid_heat_compensation.yaml` to your `config/packages/` directory (ensure packages are enabled in your `configuration.yaml`).
 3. Restart Home Assistant.
@@ -30,9 +28,9 @@ In `sensor.py`, you will find three primary parameters that dictate how the syst
 
 | Parameter | Name | Description | Default |
 | :--- | :--- | :--- | :--- |
-| **Kp** | Proportional | Reacts to the current error. Higher value = faster, more aggressive reaction. | `2.0` |
-| **Ki** | Integral | Eliminates residual error over time. Prevents the temperature from "stalling" just below the target. | `0.1` |
-| **Kd** | Derivative | Dampens the reaction if the temperature changes too quickly, preventing "overshoot." | `0.5` |
+| **Kp** | Proportional | Reacts to the current error. Higher value = faster, more aggressive reaction. | -`2.0` |
+| **Ki** | Integral | Eliminates residual error over time. Prevents the temperature from "stalling" just below the target. | `0` |
+| **Kd** | Derivative | Dampens the reaction if the temperature changes too quickly, preventing "overshoot." | `0` |
 
 ## Automation Example
 
