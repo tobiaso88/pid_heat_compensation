@@ -5,7 +5,9 @@ This Home Assistant Custom Integration optimizes heat pump performance by calcul
 
 Instead of relying solely on the heat pump's static heating curve, this integration uses a **PID (Proportional-Integral-Derivative) Controller** to dynamically adjust the control signal based on the actual real-time indoor temperature.
 
-
+## Project Structure
+- `custom_components/pid_heat_compensation/`: The core logic for the PID calculation.
+- `packages/pid_heat_compensation.yaml`: Helpers (input_numbers) and template sensors for easy UI integration.
 
 ## How It Works
 
@@ -16,12 +18,10 @@ Most heat pumps are governed by an outdoor sensor and a pre-defined heating curv
 
 ## Installation
 
-1.  Copy the `smart_heating` folder to your Home Assistant `/config/custom_components/` directory.
-2.  Ensure your entity IDs in `sensor.py` match your actual Home Assistant sensors:
-    * `sensor.indoor_temperature`
-    * `sensor.outdoor_temperature`
-    * `input_number.heating_setpoint`
-3.  Restart Home Assistant.
+## Installation
+1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory.
+2. Copy `packages/pid_heat_compensation.yaml` to your `config/packages/` directory (ensure packages are enabled in your `configuration.yaml`).
+3. Restart Home Assistant.
 4.  Add the sensor via your `configuration.yaml` or through the Integrations UI.
 
 ## Configuration (PID Tuning)
