@@ -1,7 +1,7 @@
 {
     "domain": "pid_heat_compensation",
     "name": "PID Heat Compensation Controller",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "codeowners": ["@tobiaso88"],
     "documentation": "https://github.com/tobiaso88/pid_heat_compensation",
     "issue_tracker": "https://github.com/tobiaso88/pid_heat_compensation/issues",
