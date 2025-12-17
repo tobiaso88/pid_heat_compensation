@@ -33,7 +33,7 @@ The heat pump receives 5°C and increases its output accordingly.
 
 ## Installation
 1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory.
-2. Copy `packages/pid_heat_compensation.yaml` to your `config/packages/` directory (ensure packages are enabled in your `configuration.yaml`).
+2. Copy `other/packages.yaml` to your `config/packages/` naming it `pid_heat_compensation.yaml` directory (ensure packages are enabled in your `configuration.yaml`).
 3. Restart Home Assistant.
 4.  Add the sensor via your `configuration.yaml` or through the Integrations UI.
 
@@ -50,6 +50,7 @@ In `sensor.py`, you will find three primary parameters that dictate how the syst
 ## Automation Example
 
 To send the calculated value to your heat pump, create an automation that triggers whenever the sensor state changes:
+Make sure to change the target entity id to your corret one
 
 ```yaml
 alias: "Värme: Uppdatera Ohmigo sensor"
