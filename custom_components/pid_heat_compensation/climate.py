@@ -10,10 +10,6 @@ from homeassistant.helpers.event import async_track_state_change_event
 from .const import (
     ATTR_COMPENSATED_TEMP,
     CONF_INDOOR_SENSOR,
-    CONF_KD_ENTITY,
-    CONF_KI_ENTITY,
-    CONF_KP_ENTITY,
-    CONF_WEATHER_FACTOR_ENTITY,
     CONF_OUTDOOR_SENSOR,
     DOMAIN,
     MAX_TEMP_DIFFERENCE

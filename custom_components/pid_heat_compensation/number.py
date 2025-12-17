@@ -1,6 +1,6 @@
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.helpers.entity import EntityCategory
-from .const import DOMAIN, CONF_KP_ENTITY, CONF_KI_ENTITY, CONF_KD_ENTITY, CONF_WEATHER_FACTOR_ENTITY
+from .const import DOMAIN
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the PID parameter numbers."""

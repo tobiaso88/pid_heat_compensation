@@ -6,11 +6,7 @@ from homeassistant.helpers.selector import selector
 
 from .const import (
     CONF_INDOOR_SENSOR,
-    CONF_KD_ENTITY,
-    CONF_KI_ENTITY,
-    CONF_KP_ENTITY,
     CONF_OUTDOOR_SENSOR,
-    CONF_WEATHER_FACTOR_ENTITY,
     DEFAULT_NAME,
     DOMAIN
 )
