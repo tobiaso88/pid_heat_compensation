@@ -20,7 +20,10 @@ Most heat pumps are governed by an outdoor sensor and a pre-defined heating curv
 
 The integration calculates the compensated temperature using the following logic:
 
-$$T_{comp} = T_{outdoor} - (\Delta T \times \text{weather\_factor})$$
+$$
+T_{comp} = T_{outdoor} - (\Delta T \times \text{weather\_factor})
+$$
+
 
 Where:
 - **$\Delta T$**: The difference between target and actual indoor temperature.
