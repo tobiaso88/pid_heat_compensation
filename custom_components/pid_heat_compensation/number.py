@@ -26,7 +26,7 @@ class PIDParameterNumber(NumberEntity):
         self._attr_native_max_value = max_val
         self._attr_native_step = 0.01
         self._attr_mode = NumberMode.BOX  # Gör att man kan skriva in värdet exakt
-        
+
         # Vi kategoriserar dessa som 'config' så de inte skräpar ner vanliga vyer
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_icon = "mdi:tune"

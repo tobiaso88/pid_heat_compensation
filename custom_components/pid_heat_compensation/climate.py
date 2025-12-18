@@ -93,17 +93,17 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
     async def async_added_to_hass(self) -> None:
         """Called when the entity is added to HA. Used to restore state and set up listeners."""
-        
+
         # Retrieve the last saved state
         last_state: State | None = await self.async_get_last_state()
-        
+
         if last_state:
             # Try to restore the last set target temperature
             if last_state.attributes.get(ATTR_TEMPERATURE) is not None:
                 self._attr_target_temperature = float(last_state.attributes[ATTR_TEMPERATURE])
             else:
                 self._attr_target_temperature = self.DEFAULT_TARGET_TEMP
-                
+
             # Restore HVAC mode
             if last_state.state in (HVACMode.HEAT, HVACMode.OFF):
                 self._attr_hvac_mode = last_state.state
@@ -115,7 +115,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # If no previous state was found, use the default target temperature
         if self._attr_target_temperature is None:
             self._attr_target_temperature = self.DEFAULT_TARGET_TEMP
-        
+
         # Set PID setpoint
         self.pid.setpoint = self._attr_target_temperature
 
@@ -188,21 +188,21 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             self._compensated_temp_value = round(T_comp, 1)
             self.async_write_ha_state()
             return
-        
+
         try:
             # 3. Calculate the raw correction (Delta T)
             delta_T = self.pid(T_indoor)
-            
+
             # 4. Calculate raw T_comp, applying the weather factor
             T_comp = T_real_outdoor + (delta_T * self._weather_factor)
 
             # --- IMPLEMENTATION OF SAFETY CONSTRAINTS (Clamping) ---
-            
+
             # Rule: If it is freezing outside, the simulated value must not be positive.
             if T_real_outdoor < 0:
                 # T_comp must not be greater than 0.0
                 T_comp = min(0.0, T_comp)
-            
+
             # 5. Update state and attributes
             self._compensated_temp_value = round(T_comp, 1)
             self.async_write_ha_state()
@@ -243,7 +243,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             )
         else:
             self._is_on = False
-        
+
         self._attr_hvac_mode = hvac_mode
         self.async_write_ha_state()
 
@@ -253,7 +253,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # Ensure value is not None
         compensated_temp = self._compensated_temp_value if self._compensated_temp_value is not None else 'N/A'
         real_outdoor_temperature = self._real_outdoor_temp_value if self._real_outdoor_temp_value is not None else 'N/A'
-        
+
         # Collect all attributes
         attributes = {
             ATTR_COMPENSATED_TEMP: compensated_temp, # The compensated temperature (T_comp)
@@ -269,7 +269,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
     def _get_float_state(self, entity_id):
         """Fetches and converts an entity's state to float safely."""
         from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN 
-        
+
         state = self.hass.states.get(entity_id)
         if state and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
             try:
@@ -280,25 +280,25 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
     def _update_pid_k_values(self, event=None):
         """Reads the latest K values from Input Numbers and updates the PID instance."""
-        
+
         kp = self._get_k_value(self._kp_entity_id)
         ki = self._get_k_value(self._ki_entity_id)
         kd = self._get_k_value(self._kd_entity_id)
-        
+
         # Only update PID instance if values are valid (not None)
         if kp is not None and ki is not None and kd is not None:
             self.pid.Kp = kp
             self.pid.Ki = ki
             self.pid.Kd = kd
             self._LOGGER.debug(f"PID parameters updated: Kp={kp}, Ki={ki}, Kd={kd}")
-            
+
         # If called by an Input Number change, trigger a Climate entity update via main loop
         if event:
             # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
             self.hass.async_create_task(
                 self._async_update_loop(event) # Pass the event to trigger the main loop calculation
             )
-        
+
     def _get_k_value(self, entity_id):
         """Fetches the current float value for an Input Number entity."""
         try:

@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities):
     """Set up the PID Compensated Sensor from a config entry."""
-    
+
     # The Climate Entity ID is often derived from the Config Entry's unique ID
     # or the integration's domain setup, depending on the HA version.
     # We construct a likely ID based on the domain setup, and use the friendly name.
@@ -22,7 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     # or the name given in the config flow.
     # 1. Definiera det unika ID:t som Climate Entity använder
     CLIMATE_UNIQUE_ID = f"{config_entry.entry_id}_pid_climate"
-    
+
     # 2. Använd registret för att hitta det faktiska Entitets-ID:t (t.ex. climate.pid_heat_compensation)
     entity_registry = er.async_get(hass)
     climate_entity_id = entity_registry.async_get_entity_id("climate", DOMAIN, CLIMATE_UNIQUE_ID)
@@ -33,7 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 
     # Attempt to use the friendly name from the Config Entry
     climate_name = config_entry.title if config_entry.title else "PID Heat Compensation"
-    
+
     async_add_entities([PIDCompensatedTempSensor(hass, config_entry, climate_entity_id, climate_name)], True)
     return True
 
@@ -44,7 +44,7 @@ class PIDCompensatedTempSensor(SensorEntity):
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_icon = "mdi:thermometer-lines"
-    
+
     # Set the state class for long-term statistics (optional but recommended for temps)
     _attr_state_class = "measurement" 
 
@@ -54,10 +54,10 @@ class PIDCompensatedTempSensor(SensorEntity):
         self._config_entry = config_entry
         self._climate_entity_id = climate_entity_id
         self._config_entry_id = config_entry.entry_id
-        
+
         # Set a unique ID to avoid conflicts in the entity registry
         self._attr_unique_id = f"pid_comp_temp_{climate_entity_id}"
-        
+
         # Set a descriptive friendly name
         self._attr_name = f"{climate_name} Compensated Outdoor Temp"
         self._attr_native_value = None
@@ -79,7 +79,7 @@ class PIDCompensatedTempSensor(SensorEntity):
 
     async def async_added_to_hass(self):
         """Register callbacks when entity is added."""
-        
+
         # Listen for state changes (including attribute changes) on the Climate Entity
         @callback
         def async_climate_state_listener(event):
