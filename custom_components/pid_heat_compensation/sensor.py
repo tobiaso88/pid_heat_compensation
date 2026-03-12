@@ -117,8 +117,5 @@ class PIDCompensatedTempSensor(SensorEntity):
             }
         }
 
-        # Perform an initial update
-        self.hass.async_add_executor_job(
-            async_climate_state_listener,
-            initial_event_data
-        )
+        # Perform an initial update on the event loop thread.
+        async_climate_state_listener(initial_event_data)
