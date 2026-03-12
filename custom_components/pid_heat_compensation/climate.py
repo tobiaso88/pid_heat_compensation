@@ -3,6 +3,7 @@ from simple_pid import PID
 from homeassistant.core import HomeAssistant, State
 from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, HVACMode
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers import entity_registry as er
 from homeassistant.const import ATTR_TEMPERATURE, STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.event import async_track_state_change_event
@@ -49,12 +50,17 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         config = config_entry.options if config_entry.options else config_entry.data
 
         prefix = "number." + config.get("name").lower().replace(" ", "_")
+        # Fallback IDs for backward compatibility if entity registry lookup fails.
+        self._fallback_kp_entity_id = f"{prefix}_kp"
+        self._fallback_ki_entity_id = f"{prefix}_ki"
+        self._fallback_kd_entity_id = f"{prefix}_kd"
+        self._fallback_weather_factor_entity_id = f"{prefix}_weather_factor"
 
-        # PID Entity IDs for dynamic tuning
-        self._kp_entity_id = f"{prefix}_kp"
-        self._ki_entity_id = f"{prefix}_ki"
-        self._kd_entity_id = f"{prefix}_kd"
-        self._weather_factor_entity_id = f"{prefix}_weather_factor"
+        # PID Entity IDs are resolved via entity registry (unique_id), with fallback above.
+        self._kp_entity_id = self._fallback_kp_entity_id
+        self._ki_entity_id = self._fallback_ki_entity_id
+        self._kd_entity_id = self._fallback_kd_entity_id
+        self._weather_factor_entity_id = self._fallback_weather_factor_entity_id
 
         # Configuration
         self._attr_name = config.get("name")
@@ -120,11 +126,26 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         # Set PID setpoint
         self.pid.setpoint = self._attr_target_temperature
 
+        # Resolve number entity_ids from registry to survive renames/customized IDs.
+        self._resolve_pid_number_entity_ids()
+        tracked_pid_entities = list(
+            {
+                self._kp_entity_id,
+                self._ki_entity_id,
+                self._kd_entity_id,
+                self._weather_factor_entity_id,
+                self._fallback_kp_entity_id,
+                self._fallback_ki_entity_id,
+                self._fallback_kd_entity_id,
+                self._fallback_weather_factor_entity_id,
+            }
+        )
+
         # Set up listeners for PID Input Numbers (Kp, Ki, Kd)
         self.async_on_remove(
             async_track_state_change_event(
                 self.hass, 
-                [self._kp_entity_id, self._ki_entity_id, self._kd_entity_id, self._weather_factor_entity_id], 
+                tracked_pid_entities,
                 self._update_pid_k_values
             )
         )
@@ -282,6 +303,8 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
     def _update_pid_k_values(self, event=None):
         """Reads the latest K values from Input Numbers and updates the PID instance."""
+        # Re-resolve IDs so renamed entities still work without reconfiguring.
+        self._resolve_pid_number_entity_ids()
 
         kp = self._get_k_value(self._kp_entity_id)
         ki = self._get_k_value(self._ki_entity_id)
@@ -308,3 +331,26 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         except (ValueError, TypeError):
             self._LOGGER.error(f"Could not convert state for {entity_id} to float.")
             return None # Returns None on error
+
+    def _resolve_pid_number_entity_ids(self) -> None:
+        """Resolve PID number entity_ids from the entity registry using unique_ids."""
+        entity_registry = er.async_get(self.hass)
+        resolved_kp = entity_registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._config_entry_id}_kp"
+        )
+        resolved_ki = entity_registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._config_entry_id}_ki"
+        )
+        resolved_kd = entity_registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._config_entry_id}_kd"
+        )
+        resolved_weather_factor = entity_registry.async_get_entity_id(
+            "number", DOMAIN, f"{self._config_entry_id}_weather_factor"
+        )
+
+        self._kp_entity_id = resolved_kp or self._fallback_kp_entity_id
+        self._ki_entity_id = resolved_ki or self._fallback_ki_entity_id
+        self._kd_entity_id = resolved_kd or self._fallback_kd_entity_id
+        self._weather_factor_entity_id = (
+            resolved_weather_factor or self._fallback_weather_factor_entity_id
+        )

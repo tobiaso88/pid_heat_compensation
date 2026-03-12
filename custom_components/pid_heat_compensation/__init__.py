@@ -1,14 +1,12 @@
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.const import Platform
 from .const import DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
-# Change the typing to be general, or remove it.
-# Home Assistant recommends not using ConfigType here in Config Flow components.
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up integration domain."""
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -22,9 +20,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Relieves PID Heat Compensation Config Entry."""
+    """Unload PID Heat Compensation config entry."""
 
-    # If this was called by an Input Number change, trigger a reload of the Climate entity.
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS) 
     
     if unload_ok:
