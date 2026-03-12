@@ -16,9 +16,15 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     # Attempt to use the friendly name from the Config Entry
     climate_name = config_entry.title if config_entry.title else "PID Heat Compensation"
     climate_unique_id = f"{config_entry.entry_id}_pid_climate"
+    entity_registry = er.async_get(hass)
+    climate_entity_id = entity_registry.async_get_entity_id("climate", DOMAIN, climate_unique_id)
 
     async_add_entities(
-        [PIDCompensatedTempSensor(hass, config_entry, climate_unique_id, climate_name)],
+        [
+            PIDCompensatedTempSensor(
+                hass, config_entry, climate_unique_id, climate_name, climate_entity_id
+            )
+        ],
         True,
     )
     return True
@@ -34,18 +40,23 @@ class PIDCompensatedTempSensor(SensorEntity):
     # Set the state class for long-term statistics (optional but recommended for temps)
     _attr_state_class = "measurement" 
 
-    def __init__(self, hass, config_entry, climate_unique_id, climate_name):
+    def __init__(
+        self, hass, config_entry, climate_unique_id, climate_name, climate_entity_id=None
+    ):
         """Initialize the sensor."""
         self.hass = hass
         self._config_entry = config_entry
         self._climate_unique_id = climate_unique_id
-        self._climate_entity_id = None
+        self._climate_entity_id = climate_entity_id
         self._config_entry_id = config_entry.entry_id
         self._remove_climate_listener = None
         self._remove_retry_listener = None
 
-        # Set a unique ID to avoid conflicts in the entity registry
-        self._attr_unique_id = f"pid_comp_temp_{self._config_entry_id}"
+        # Keep backward-compatible unique_id when climate entity_id is available.
+        if climate_entity_id:
+            self._attr_unique_id = f"pid_comp_temp_{climate_entity_id}"
+        else:
+            self._attr_unique_id = f"pid_comp_temp_{self._config_entry_id}"
 
         # Set a descriptive friendly name
         self._attr_name = f"{climate_name} Compensated Outdoor Temp"
