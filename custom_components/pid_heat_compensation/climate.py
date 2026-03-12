@@ -69,6 +69,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         self._real_outdoor_temp_value = None
         # weather_factor is initialized here, dynamically updated in _async_update_loop
         self._weather_factor = 1.0 
+        self._waiting_for_valid_sensors = False
 
         # PID-instance (Anti-Windup limits set dynamically)
         self.pid = PID(
@@ -175,8 +176,15 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
         # If T_indoor/T_real_outdoor are STILL None after attempted restoration, abort.
         if T_indoor is None or T_real_outdoor is None:
-            self._LOGGER.warning("Could not fetch valid temperature values for PID calculation (Sensors still loading).")
+            if not self._waiting_for_valid_sensors:
+                self._LOGGER.debug(
+                    "Waiting for valid temperature values for PID calculation (sensors still loading)."
+                )
+                self._waiting_for_valid_sensors = True
             return
+
+        # Reset waiting flag when valid data is available again.
+        self._waiting_for_valid_sensors = False
 
         self._attr_current_temperature = T_indoor
 
