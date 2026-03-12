@@ -1,5 +1,7 @@
 from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.restore_state import RestoreEntity
 from .const import DOMAIN
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -13,7 +15,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     ]
     async_add_entities(entities)
 
-class PIDParameterNumber(NumberEntity):
+class PIDParameterNumber(NumberEntity, RestoreEntity):
     """En entitet som ersätter input_number för PID-inställningar."""
 
     def __init__(self, config_entry, name, initial_value, min_val, max_val):
@@ -46,3 +48,16 @@ class PIDParameterNumber(NumberEntity):
         self._attr_native_value = value
         self.async_write_ha_state()
         # Här kan du också trigga en omräkning i din PID-controller direkt!
+
+    async def async_added_to_hass(self) -> None:
+        """Återställ senast sparat värde efter omstart."""
+        await super().async_added_to_hass()
+
+        last_state = await self.async_get_last_state()
+        if not last_state or last_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
+            return
+
+        try:
+            self._attr_native_value = float(last_state.state)
+        except (TypeError, ValueError):
+            return
