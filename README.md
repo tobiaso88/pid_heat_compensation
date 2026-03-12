@@ -7,7 +7,7 @@ Instead of relying solely on the heat pump's static heating curve, this integrat
 
 ## Project Structure
 - `custom_components/pid_heat_compensation/`: The core logic for the PID calculation.
-- `packages/pid_heat_compensation.yaml`: Helpers (input_numbers) and template sensors for easy UI integration.
+- `custom_components/pid_heat_compensation/number.py`: PID tuning entities (Kp, Ki, Kd, Weather Factor).
 
 ## How It Works
 
@@ -20,15 +20,16 @@ Most heat pumps are governed by an outdoor sensor and a pre-defined heating curv
 
 The integration calculates the compensated temperature using the following logic:
 
-$$T_{comp} = T_{outdoor} - (\Delta T \times weather_factor)$$
+$$T_{comp} = T_{outdoor} + (PID_{output} \times weather\_factor)$$
 
 Where:
-- **$\Delta T$**: The difference between target and actual indoor temperature.
+- **$PID_{output}$**: The controller output from the PID loop (based on setpoint, current indoor temperature, and Kp/Ki/Kd).
 - **weather_factor**: A multiplier that defines how aggressively the system should react to temperature deviations and external conditions (wind, sun, etc.).
+- With the default negative Kp tuning, a colder indoor temperature typically gives a negative PID output, which lowers $T_{comp}$ and increases heat pump output.
 
 **Example:**
-If it's 7°C outside and the house is 1°C below target, a weather factor of 2.0 will result in:
-$7.0 - (1.0 \times 2.0) = 5.0°C$
+If it's 7°C outside, the PID output is -1.0, and weather factor is 2.0:
+$7.0 + (-1.0 \times 2.0) = 5.0°C$
 The heat pump receives 5°C and increases its output accordingly.
 
 ## Installation
@@ -40,11 +41,11 @@ The heat pump receives 5°C and increases its output accordingly.
 
 ## Configuration (PID Tuning)
 
-In `sensor.py`, you will find three primary parameters that dictate how the system reacts. Adjust these to suit your home's specific thermal mass:
+In `number.py`, you will find the primary parameters that dictate how the system reacts. Adjust these to suit your home's specific thermal mass:
 
 | Parameter | Name | Description | Default |
 | :--- | :--- | :--- | :--- |
-| **Kp** | Proportional | Reacts to the current error. Higher value = faster, more aggressive reaction. | -`2.0` |
+| **Kp** | Proportional | Reacts to the current error. With the default negative tuning, a lower (more negative) value gives a faster, more aggressive reaction. | -`2.0` |
 | **Ki** | Integral | Eliminates residual error over time. Prevents the temperature from "stalling" just below the target. | `0` |
 | **Kd** | Derivative | Dampens the reaction if the temperature changes too quickly, preventing "overshoot." | `0` |
 
@@ -70,4 +71,3 @@ actions:
         - number.ohmonwifiplus_402552_temperature_set
     action: number.set_value
 mode: single
-
