@@ -224,22 +224,16 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             self._attr_target_temperature = target_temp
             self.pid.setpoint = target_temp
 
-            # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
-            self.hass.async_create_task(
-                self._async_update_loop(
-                    {'data': {'new_state': self.hass.states.get(self._indoor_sensor)}}
-                )
+            await self._async_update_loop(
+                {"data": {"new_state": self.hass.states.get(self._indoor_sensor)}}
             )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Sets the operating mode (HEAT/OFF)."""
         if hvac_mode == HVACMode.HEAT:
             self._is_on = True
-            # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
-            self.hass.async_create_task(
-                self._async_update_loop(
-                    {'data': {'new_state': self.hass.states.get(self._indoor_sensor)}}
-                )
+            await self._async_update_loop(
+                {"data": {"new_state": self.hass.states.get(self._indoor_sensor)}}
             )
         else:
             self._is_on = False
@@ -294,10 +288,8 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
         # If called by an Input Number change, trigger a Climate entity update via main loop
         if event:
-            # KORRIGERING (FUTURE-PROOF): Use async_create_task instead of async_add_job
-            self.hass.async_create_task(
-                self._async_update_loop(event) # Pass the event to trigger the main loop calculation
-            )
+            # This callback can run from a non-event-loop thread, so schedule thread-safe.
+            self.hass.add_job(self._async_update_loop(event))
 
     def _get_k_value(self, entity_id):
         """Fetches the current float value for an Input Number entity."""
