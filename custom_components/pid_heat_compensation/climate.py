@@ -1,6 +1,7 @@
 import logging
+import math
 from simple_pid import PID
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature, HVACMode
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers import entity_registry as er
@@ -47,7 +48,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         self._config_entry_id = config_entry.entry_id
 
         # Read config (prioritizes options over initial config data)
-        config = config_entry.options if config_entry.options else config_entry.data
+        config = {**config_entry.data, **config_entry.options}
 
         prefix = "number." + config.get("name").lower().replace(" ", "_")
         # Fallback IDs for backward compatibility if entity registry lookup fails.
@@ -101,13 +102,20 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Called when the entity is added to HA. Used to restore state and set up listeners."""
 
+        await super().async_added_to_hass()
+
         # Retrieve the last saved state
         last_state: State | None = await self.async_get_last_state()
 
         if last_state:
             # Try to restore the last set target temperature
             if last_state.attributes.get(ATTR_TEMPERATURE) is not None:
-                self._attr_target_temperature = float(last_state.attributes[ATTR_TEMPERATURE])
+                try:
+                    restored = float(last_state.attributes[ATTR_TEMPERATURE])
+                    if math.isfinite(restored):
+                        self._attr_target_temperature = restored
+                except (TypeError, ValueError):
+                    pass
             else:
                 self._attr_target_temperature = self.DEFAULT_TARGET_TEMP
 
@@ -172,51 +180,33 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         T_real_outdoor = self._get_float_state(self._outdoor_sensor)
         weather_factor = self._get_float_state(self._weather_factor_entity_id)
 
-        self._weather_factor = weather_factor if weather_factor is not None else 1.0
-
-        # Update real outdoor temperature attribute (for monitoring)
+        self._weather_factor = (
+            weather_factor if weather_factor is not None and 0 <= weather_factor <= 2 else 1.0
+        )
         self._real_outdoor_temp_value = T_real_outdoor
-
-        # --- RESTORING LOGIC FOR NONE VALUES (Fixes startup warnings/aborts) ---
-
-        if T_indoor is None:
-            last_state = self.hass.states.get(self._indoor_sensor)
-            if last_state and last_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
-                try:
-                    T_indoor = float(last_state.state)
-                except ValueError:
-                    pass 
-
-        if T_real_outdoor is None:
-            last_state = self.hass.states.get(self._outdoor_sensor)
-            if last_state and last_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
-                try:
-                    T_real_outdoor = float(last_state.state)
-                except ValueError:
-                    pass
-
-        # If T_indoor/T_real_outdoor are STILL None after attempted restoration, abort.
-        if T_indoor is None or T_real_outdoor is None:
-            if not self._waiting_for_valid_sensors:
-                self._LOGGER.debug(
-                    "Waiting for valid temperature values for PID calculation (sensors still loading)."
-                )
-                self._waiting_for_valid_sensors = True
-            return
-
-        # Reset waiting flag when valid data is available again.
-        self._waiting_for_valid_sensors = False
-
         self._attr_current_temperature = T_indoor
 
-        # 2. Handle OFF mode
-        if not self._is_on:
-            # If system is OFF, T_comp is set to T_real_outdoor (or a high value) 
-            # to ensure the heat pump does not heat.
-            T_comp = T_real_outdoor
-            self._compensated_temp_value = round(T_comp, 1)
+        # No outdoor value means there is no valid control signal to publish.
+        # Without indoor feedback, fall back to the heat pump's normal curve.
+        missing = T_indoor is None or T_real_outdoor is None
+        self._waiting_for_valid_sensors = missing
+        if missing or not self._is_on or self._weather_factor == 0:
+            self.pid.set_auto_mode(False)
+            self._compensated_temp_value = (
+                round(T_real_outdoor, 1) if T_real_outdoor is not None else None
+            )
             self.async_write_ha_state()
             return
+
+        # Bound the final correction, including the multiplier. Match the
+        # integral limits to the actuator limits, including the freezing cap.
+        limit = self.MAX_TEMP_DIFFERENCE / self._weather_factor
+        upper = limit
+        if T_real_outdoor < 0:
+            upper = min(upper, -T_real_outdoor / self._weather_factor)
+        self.pid.output_limits = (-limit, upper)
+        # Reset elapsed time and integral after OFF or missing sensor input.
+        self.pid.set_auto_mode(True)
 
         try:
             # 3. Calculate the raw correction (Delta T)
@@ -224,6 +214,8 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
             # 4. Calculate raw T_comp, applying the weather factor
             T_comp = T_real_outdoor + (delta_T * self._weather_factor)
+            T_comp = max(T_real_outdoor - self.MAX_TEMP_DIFFERENCE,
+                         min(T_real_outdoor + self.MAX_TEMP_DIFFERENCE, T_comp))
 
             # --- IMPLEMENTATION OF SAFETY CONSTRAINTS (Clamping) ---
 
@@ -250,6 +242,9 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         """Sets the new target setpoint (Target Temperature)."""
         target_temp = kwargs.get(ATTR_TEMPERATURE)
         if target_temp is not None:
+            target_temp = float(target_temp)
+            if not math.isfinite(target_temp):
+                raise ValueError("Target temperature must be finite")
             self._attr_target_temperature = target_temp
             self.pid.setpoint = target_temp
 
@@ -259,32 +254,23 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Sets the operating mode (HEAT/OFF)."""
-        if hvac_mode == HVACMode.HEAT:
-            self._is_on = True
-            await self._async_update_loop(
-                {"data": {"new_state": self.hass.states.get(self._indoor_sensor)}}
-            )
-        else:
-            self._is_on = False
-
+        if hvac_mode not in self._attr_hvac_modes:
+            raise ValueError(f"Unsupported HVAC mode: {hvac_mode}")
+        self._is_on = hvac_mode == HVACMode.HEAT
         self._attr_hvac_mode = hvac_mode
-        self.async_write_ha_state()
+        await self._async_update_loop(None)
 
     @property
     def extra_state_attributes(self):
         """Exposes the calculated temperature and PID terms as attributes."""
-        # Ensure value is not None
-        compensated_temp = self._compensated_temp_value if self._compensated_temp_value is not None else 'N/A'
-        real_outdoor_temperature = self._real_outdoor_temp_value if self._real_outdoor_temp_value is not None else 'N/A'
-
         # Collect all attributes
         attributes = {
-            ATTR_COMPENSATED_TEMP: compensated_temp, # The compensated temperature (T_comp)
+            ATTR_COMPENSATED_TEMP: self._compensated_temp_value, # The compensated temperature (T_comp)
             "PID_Kp": self.pid.Kp,
             "PID_Ki": self.pid.Ki,
             "PID_Kd": self.pid.Kd,
             "PID_setpoint": self.pid.setpoint,
-            "real_outdoor_temperature": real_outdoor_temperature,
+            "real_outdoor_temperature": self._real_outdoor_temp_value,
             "weather_factor": self._weather_factor,
         }
         return attributes
@@ -296,11 +282,13 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         state = self.hass.states.get(entity_id)
         if state and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN, None):
             try:
-                return float(state.state)
-            except ValueError:
+                value = float(state.state)
+                return value if math.isfinite(value) else None
+            except (TypeError, ValueError):
                 self._LOGGER.error(f"Could not convert state '{state.state}' for {entity_id} to float.")
         return None # Returns None if value is invalid or missing
 
+    @callback
     def _update_pid_k_values(self, event=None):
         """Reads the latest K values from Input Numbers and updates the PID instance."""
         # Re-resolve IDs so renamed entities still work without reconfiguring.
@@ -319,7 +307,7 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
         # If called by an Input Number change, trigger a Climate entity update via main loop
         if event:
-            # This callback can run from a non-event-loop thread, so schedule thread-safe.
+            # The callback stays on the event loop with registry and PID access.
             self.hass.add_job(self._async_update_loop(event))
 
     def _get_k_value(self, entity_id):
@@ -327,7 +315,8 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
         try:
             state = self.hass.states.get(entity_id)
             if state and state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-                return float(state.state)
+                value = float(state.state)
+                return value if math.isfinite(value) else None
         except (ValueError, TypeError):
             self._LOGGER.error(f"Could not convert state for {entity_id} to float.")
             return None # Returns None on error

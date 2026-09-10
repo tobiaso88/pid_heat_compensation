@@ -35,7 +35,7 @@ The heat pump receives 5°C and increases its output accordingly.
 ## Installation
 1. Copy the `custom_components/pid_heat_compensation/` folder to your Home Assistant `config/custom_components/` directory. Or add it via HACS
 2. Restart Home Assistant.
-3. Add the sensor via your `configuration.yaml` or through the Integrations UI.
+3. Add PID Heat Compensation through the Integrations UI.
 
 ![Config Flow Setup](images/setup.png)
 
@@ -51,16 +51,20 @@ In `number.py`, you will find the primary parameters that dictate how the system
 
 ## Automation Example
 
-To send the calculated value to your heat pump, create an automation that triggers whenever the sensor state changes:
-Make sure to change the target entity id to your corret one
+To send the calculated value to your heat pump, trigger on sensor changes and retry every 15 minutes. Replace both entity IDs with your own.
 
 ```yaml
 alias: "Värme: Uppdatera Ohmigo sensor"
 description: ""
 triggers:
+  - trigger: state
+    entity_id: sensor.pid_heat_compensation_compensated_outdoor_temp
   - trigger: time_pattern
     minutes: /15
-conditions: []
+conditions:
+  - condition: template
+    value_template: >-
+      {{ is_number(states("sensor.pid_heat_compensation_compensated_outdoor_temp")) }}
 actions:
   - data:
       value: >-
@@ -71,3 +75,28 @@ actions:
         - number.ohmonwifiplus_402552_temperature_set
     action: number.set_value
 mode: single
+
+```
+
+## Failure handling and limits
+
+- Missing or invalid indoor temperature: suspend PID and publish the actual outdoor temperature.
+- Missing or invalid outdoor temperature: make the compensated sensor unavailable and clear its value.
+- OFF disables compensation immediately; it does not switch off the heat pump.
+- PID resumes with a reset integral and timer after OFF, sensor failure, or a zero weather factor.
+- The final correction is limited to ±10 °C, including the weather factor. The integral limits follow the multiplier and the existing freezing cap.
+- Weather Factor accepts 0–2. Zero disables compensation. Previously saved negative or invalid values fall back to 1.
+
+The example automation skips unavailable values. It cannot clear a value already stored in the external device: configure the device's watchdog or physical-sensor fallback separately if supported. Sensor failures here mean missing, unavailable, unknown, or non-finite readings; a sensor that keeps reporting a plausible but frozen value is not detected.
+
+## Tests
+
+Run the tests with the pinned runtime dependency:
+
+```sh
+python3 -m venv /tmp/pid-heat-tests
+/tmp/pid-heat-tests/bin/pip install -r tests/requirements.txt
+/tmp/pid-heat-tests/bin/python -m unittest discover -s tests -v
+```
+
+Behavior tests use the real PID library with a minimal Home Assistant API double. They do not replace validation in a running Home Assistant installation.

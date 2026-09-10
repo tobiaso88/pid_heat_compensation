@@ -1,3 +1,4 @@
+import math
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers.entity import EntityCategory
@@ -11,7 +12,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         PIDParameterNumber(config_entry, "Kp", -2.0, -10.0, 10.0),
         PIDParameterNumber(config_entry, "Ki", 0.0, -5.0, 5.0),
         PIDParameterNumber(config_entry, "Kd", 0.0, -5.0, 5.0),
-        PIDParameterNumber(config_entry, "Weather Factor", 1.0, -2.0, 2.0),
+        PIDParameterNumber(config_entry, "Weather Factor", 1.0, 0.0, 2.0),
     ]
     async_add_entities(entities)
 
@@ -45,6 +46,8 @@ class PIDParameterNumber(NumberEntity, RestoreEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Uppdatera värdet när användaren ändrar i UI."""
+        if not math.isfinite(value) or not self._attr_native_min_value <= value <= self._attr_native_max_value:
+            raise ValueError("PID parameter must be finite and within its limits")
         self._attr_native_value = value
         self.async_write_ha_state()
         # Här kan du också trigga en omräkning i din PID-controller direkt!
@@ -58,6 +61,8 @@ class PIDParameterNumber(NumberEntity, RestoreEntity):
             return
 
         try:
-            self._attr_native_value = float(last_state.state)
+            value = float(last_state.state)
+            if math.isfinite(value) and self._attr_native_min_value <= value <= self._attr_native_max_value:
+                self._attr_native_value = value
         except (TypeError, ValueError):
             return

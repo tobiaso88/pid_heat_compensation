@@ -1,4 +1,5 @@
 import logging
+import math
 from homeassistant.helpers import entity_registry as er
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import UnitOfTemperature, STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -60,6 +61,7 @@ class PIDCompensatedTempSensor(SensorEntity):
 
         # Set a descriptive friendly name
         self._attr_name = f"{climate_name} Compensated Outdoor Temp"
+        self._attr_available = False
         self._attr_native_value = None
 
     @property
@@ -101,18 +103,18 @@ class PIDCompensatedTempSensor(SensorEntity):
             """Handles state changes from the Climate Entity."""
             new_state = self._extract_new_state_from_event(event)
 
-            if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-                return
-
-            # Get the value from the attribute exposed in climate.py
-            compensated_temp = new_state.attributes.get(ATTR_COMPENSATED_TEMP)
-
-            if compensated_temp is not None and compensated_temp != 'N/A':
+            self._attr_native_value = None
+            self._attr_available = False
+            if new_state is not None and new_state.state not in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                compensated_temp = new_state.attributes.get(ATTR_COMPENSATED_TEMP)
                 try:
-                    self._attr_native_value = float(compensated_temp)
-                    self.async_write_ha_state()
+                    value = float(compensated_temp)
+                    if math.isfinite(value):
+                        self._attr_native_value = value
+                        self._attr_available = True
                 except (ValueError, TypeError):
-                    _LOGGER.warning(f"Failed to convert compensated temp attribute '{compensated_temp}' to float.")
+                    pass
+            self.async_write_ha_state()
 
         # Use the modern and correct method to track state changes
         self._remove_climate_listener = async_track_state_change_event(
