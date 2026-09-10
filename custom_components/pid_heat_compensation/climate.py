@@ -38,7 +38,11 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
 
     _attr_hvac_mode = HVACMode.HEAT
     _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
-    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.TURN_ON
+        | ClimateEntityFeature.TURN_OFF
+    )
     _attr_temperature_unit = TEMP_CELSIUS
 
     def __init__(self, hass, config_entry):
@@ -251,6 +255,14 @@ class PIDClimateController(ClimateEntity, RestoreEntity):
             await self._async_update_loop(
                 {"data": {"new_state": self.hass.states.get(self._indoor_sensor)}}
             )
+
+    async def async_turn_on(self) -> None:
+        """Enable heat compensation."""
+        await self.async_set_hvac_mode(HVACMode.HEAT)
+
+    async def async_turn_off(self) -> None:
+        """Disable compensation and pass through the outdoor temperature."""
+        await self.async_set_hvac_mode(HVACMode.OFF)
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Sets the operating mode (HEAT/OFF)."""

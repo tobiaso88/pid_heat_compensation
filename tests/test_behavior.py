@@ -37,7 +37,7 @@ def load_modules():
     module('homeassistant.core', HomeAssistant=object, State=object, callback=lambda f: f)
     module('homeassistant.components')
     module('homeassistant.components.climate', ClimateEntity=Entity,
-           ClimateEntityFeature=SimpleNamespace(TARGET_TEMPERATURE=1),
+           ClimateEntityFeature=SimpleNamespace(TARGET_TEMPERATURE=1, TURN_ON=128, TURN_OFF=256),
            HVACMode=SimpleNamespace(HEAT='heat', OFF='off'))
     module('homeassistant.components.sensor', SensorEntity=Entity)
     module('homeassistant.components.number', NumberEntity=Entity,
@@ -135,6 +135,26 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
         self.values['sensor.outdoor'] = state(-8)
         await self.update()
         self.assertEqual(self.controller._compensated_temp_value, -8)
+
+    async def test_turn_services_advertise_support_and_update_output(self):
+        features = climate.ClimateEntityFeature
+        self.assertTrue(self.controller._attr_supported_features & features.TURN_ON)
+        self.assertTrue(self.controller._attr_supported_features & features.TURN_OFF)
+        self.assertTrue(self.controller._attr_supported_features & features.TARGET_TEMPERATURE)
+        self.controller.pid.tunings = (-2, -0.01, 0)
+        await self.update()
+        constants = SimpleNamespace(STATE_UNAVAILABLE='unavailable', STATE_UNKNOWN='unknown')
+        with patch.dict(sys.modules, {'homeassistant.const': constants}):
+            await self.controller.async_turn_off()
+            self.assertEqual(self.controller._attr_hvac_mode, 'off')
+            self.assertEqual(self.controller._compensated_temp_value, -5)
+            self.assertFalse(self.controller.pid.auto_mode)
+            self.now += 86400
+            await self.controller.async_turn_on()
+        self.assertEqual(self.controller._attr_hvac_mode, 'heat')
+        self.assertEqual(self.controller._compensated_temp_value, -7)
+        self.assertTrue(self.controller.pid.auto_mode)
+        self.assertAlmostEqual(self.controller.pid.components[1], 0, places=6)
 
     async def test_long_off_does_not_integrate_downtime(self):
         self.controller.pid.tunings = (-2, -0.01, 0)
